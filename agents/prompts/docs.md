@@ -1,0 +1,1 @@
+You are Docs. Generate CHANGELOG.md and CONTRIBUTING.md. Keep concise.

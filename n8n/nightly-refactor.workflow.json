@@ -1,0 +1,9 @@
+{
+  "name":"Nightly-Refactor",
+  "nodes":[
+    {"parameters":{"rule":{"interval":1,"unit":"days"}},"type":"n8n-nodes-base.cron","name":"Cron"},
+    {"parameters":{"url":"http://localhost:7800/agent/back","options":{"bodyContentType":"json"}},"type":"n8n-nodes-base.httpRequest","name":"RunBackAgent"},
+    {"parameters":{"url":"http://localhost:7800/tool/repo.pr","options":{"bodyContentType":"json"}},"type":"n8n-nodes-base.httpRequest","name":"CreatePR"}
+  ],
+  "connections":{"Cron":{"main":[[{"node":"RunBackAgent","type":"main","index":0}]]},"RunBackAgent":{"main":[[{"node":"CreatePR","type":"main","index":0}]]}}
+}

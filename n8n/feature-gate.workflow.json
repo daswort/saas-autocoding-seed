@@ -1,0 +1,9 @@
+{
+  "name":"Feature-Gate",
+  "nodes":[
+    {"parameters":{"path":"/supervisor/event"},"type":"n8n-nodes-base.webhook","name":"Webhook"},
+    {"parameters":{"functionCode":"return [{ json: { approve: $json.risk === 0, diff: $json.diff }}];"},"type":"n8n-nodes-base.function","name":"Summarize"},
+    {"parameters":{"url":"http://localhost:7800/tool/ci.run","options":{"bodyContentType":"json"}},"type":"n8n-nodes-base.httpRequest","name":"Trigger CI"}
+  ],
+  "connections":{"Webhook":{"main":[[{"node":"Summarize","type":"main","index":0}]]},"Summarize":{"main":[[{"node":"Trigger CI","type":"main","index":0}]]}}
+}
