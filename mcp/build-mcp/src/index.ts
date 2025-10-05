@@ -26,8 +26,19 @@ const r = await $`bash -lc ${cmd}`.nothrow(); return { ok: r.exitCode===0, outpu
 
 
 const app = express(); app.use(express.json());
-app.post("/mcp", async (req,res)=>{ const t=new StreamableHTTPServerTransport({enableJsonResponse:true}); res.on("close",()=>t.close()); await server.connect(t); await t.handleRequest(req,res,req.body); });
+
+function ensureAcceptHeader(req: express.Request) {
+  const header = req.headers["accept"];
+  const joined = Array.isArray(header) ? header.join(",") : header ?? "";
+  const parts = joined.split(",").map((p) => p.trim()).filter(Boolean);
+  if (!parts.some((p) => p.includes("application/json"))) parts.push("application/json");
+  if (!parts.some((p) => p.includes("text/event-stream"))) parts.push("text/event-stream");
+  req.headers["accept"] = parts.join(", ");
+}
+
+app.post("/mcp", async (req,res)=>{ ensureAcceptHeader(req); const t=new StreamableHTTPServerTransport({enableJsonResponse:true}); res.on("close",()=>t.close()); await server.connect(t); await t.handleRequest(req,res,req.body); });
 app.post("/", async (req, res) => {
+  ensureAcceptHeader(req);
   const t = new StreamableHTTPServerTransport({ enableJsonResponse: true });
   res.on("close", () => t.close());
   await server.connect(t);
