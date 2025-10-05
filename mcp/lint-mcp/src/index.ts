@@ -23,8 +23,18 @@ reg("lint.back", { lang: z.string().optional() }, "Run backend linter", async ({
 
 const app = express(); app.use(express.json());
 
+function ensureAcceptHeader(req: express.Request) {
+  const header = req.headers["accept"];
+  const joined = Array.isArray(header) ? header.join(",") : header ?? "";
+  const parts = joined.split(",").map((p) => p.trim()).filter(Boolean);
+  if (!parts.some((p) => p.includes("application/json"))) parts.push("application/json");
+  if (!parts.some((p) => p.includes("text/event-stream"))) parts.push("text/event-stream");
+  req.headers["accept"] = parts.join(", ");
+}
+
 // MCP en /mcp
 app.post("/mcp", async (req, res) => {
+  ensureAcceptHeader(req);
   const t = new StreamableHTTPServerTransport({ enableJsonResponse: true });
   res.on("close", () => t.close());
   await server.connect(t);
@@ -32,6 +42,7 @@ app.post("/mcp", async (req, res) => {
 });
 // MCP también en la raíz /
 app.post("/", async (req, res) => {
+  ensureAcceptHeader(req);
   const t = new StreamableHTTPServerTransport({ enableJsonResponse: true });
   res.on("close", () => t.close());
   await server.connect(t);
