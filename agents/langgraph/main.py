@@ -56,16 +56,35 @@ MCP_TOOLS = [
 ]
 
 
+def _diagnose_mcp_error(err: Exception) -> str | None:
+    message = getattr(err, "message", None) or str(err)
+    if "Error retrieving tool list from MCP server" not in message:
+        return None
+    hint = [
+        "No se pudo contactar al servidor MCP indicado. Esto normalmente ocurre cuando el proceso del MCP no está levantado o la URL apunta a un host inaccesible.",
+        "Verifica que el servidor esté escuchando y que `*_MCP_URL` (o `MCP_BASE_URL`) apunte a un endpoint alcanzable desde la API de OpenAI.",
+    ]
+    if "401" in message:
+        hint.append("El servidor respondió 401: revisa que la cabecera del API key (`MCP_TOOL_API_KEY_HEADER`) y el valor configurado coincidan.")
+    return " ".join(hint)
+
+
 def call(role: str, state: State):
-    r = client.responses.create(
-        model=MODEL,
-        tools=MCP_TOOLS,
-        input=[
-            {"role": "system", "content": PROMPTS[role]},
-            {"role": "user", "content": json.dumps(state, ensure_ascii=False)}
-        ],
-    )
-    return r.output_text
+    try:
+        r = client.responses.create(
+            model=MODEL,
+            tools=MCP_TOOLS,
+            input=[
+                {"role": "system", "content": PROMPTS[role]},
+                {"role": "user", "content": json.dumps(state, ensure_ascii=False)}
+            ],
+        )
+        return r.output_text
+    except Exception as err:
+        hint = _diagnose_mcp_error(err)
+        if hint:
+            raise RuntimeError(f"Fallo al inicializar las herramientas MCP: {hint}") from err
+        raise
 
 def Discovery(state: State):
     out = call("discovery", state)
