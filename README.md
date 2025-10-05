@@ -28,18 +28,3 @@ Requisitos: Node 20+, pnpm, Python 3.11+, n8n, gh CLI. Para stacks específicos 
 
 5) Seguridad: limita rutas en repo-mcp/policy.ts, ejecuta MCP en workspace aislado, usa tokens efímeros.
 
-## Solución de problemas
-
-### Error 424 al inicializar MCP
-
-Si `python agents/langgraph/main.py` termina con un trace como:
-
-```
-openai.APIStatusError: Error retrieving tool list from MCP server: 'test'. Http status code: 424 (Failed Dependency)
-```
-
-significa que la API de OpenAI no pudo conectar con el servidor MCP configurado para `test`. Comprueba lo siguiente:
-
-1. El proceso del MCP correspondiente está en ejecución (`pnpm -C mcp/test-mcp start`).
-2. `TEST_MCP_URL` o `MCP_BASE_URL` apunta a un dominio accesible desde la plataforma que ejecuta el modelo (no solo desde tu máquina local).
-3. Si protegiste `/tool/*` con API keys, que la cabecera definida en `MCP_TOOL_API_KEY_HEADER` se esté enviando con un valor permitido por `*_MCP_TOOL_API_KEYS`.

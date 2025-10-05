@@ -1,8 +1,8 @@
-import os, json
+import os, json, re
 from typing import TypedDict
 from dotenv import load_dotenv
 from langgraph.graph import StateGraph, END
-from openai import OpenAI
+from openai import OpenAI, APIStatusError
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -55,6 +55,18 @@ MCP_TOOLS = [
     for label, port in _MCP_DEFAULTS
 ]
 
+_mcp_skip: set[str] = set()
+
+
+def _active_mcp_tools():
+    return [tool for tool in MCP_TOOLS if tool["server_label"] not in _mcp_skip]
+
+
+def _extract_mcp_label(err: Exception) -> str | None:
+    message = getattr(err, "message", None) or str(err)
+    match = re.search(r"MCP server: '([^']+)'", message)
+    return match.group(1) if match else None
+
 
 def _diagnose_mcp_error(err: Exception) -> str | None:
     message = getattr(err, "message", None) or str(err)
@@ -70,21 +82,27 @@ def _diagnose_mcp_error(err: Exception) -> str | None:
 
 
 def call(role: str, state: State):
-    try:
-        r = client.responses.create(
-            model=MODEL,
-            tools=MCP_TOOLS,
-            input=[
-                {"role": "system", "content": PROMPTS[role]},
-                {"role": "user", "content": json.dumps(state, ensure_ascii=False)}
-            ],
-        )
-        return r.output_text
-    except Exception as err:
-        hint = _diagnose_mcp_error(err)
-        if hint:
-            raise RuntimeError(f"Fallo al inicializar las herramientas MCP: {hint}") from err
-        raise
+    while True:
+        try:
+            r = client.responses.create(
+                model=MODEL,
+                tools=_active_mcp_tools(),
+                input=[
+                    {"role": "system", "content": PROMPTS[role]},
+                    {"role": "user", "content": json.dumps(state, ensure_ascii=False)}
+                ],
+            )
+            return r.output_text
+        except Exception as err:
+            label = _extract_mcp_label(err)
+            status = getattr(err, "status_code", None)
+            if isinstance(err, APIStatusError):
+                status = err.status_code
+            if label and label not in _mcp_skip and status == 424:
+                _mcp_skip.add(label)
+                print(f"[langgraph] Advertencia: se omitirá el MCP '{label}' por no estar disponible ({err}).")
+                continue
+            raise
 
 def Discovery(state: State):
     out = call("discovery", state)
