@@ -8,6 +8,22 @@ load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 MODEL = os.getenv("MODEL", "gpt-5-codex")
 
+
+def _mcp_server_url(label: str, default_port: int) -> str:
+    env_var = f"{label.upper()}_MCP_URL"
+    explicit = os.getenv(env_var)
+    if explicit:
+        return explicit
+    base = os.getenv("MCP_BASE_URL")
+    if base:
+        return f"{base.rstrip('/')}/{label}"
+    return f"http://127.0.0.1:{default_port}"
+
+
+def _mcp_require_approval(label: str) -> str:
+    env_var = f"{label.upper()}_MCP_REQUIRE_APPROVAL"
+    return os.getenv(env_var, os.getenv("MCP_REQUIRE_APPROVAL_DEFAULT", "always"))
+
 class State(TypedDict):
     feature: dict
     stack: dict
@@ -20,13 +36,23 @@ for name in ["discovery","uxui","spec","plan","front","back","qa","infra","docs"
         PROMPTS[name] = f.read()
 
 # MCP: usa server_url + server_label
+_MCP_DEFAULTS = [
+    ("repo", 40000),
+    ("build", 40001),
+    ("test", 40002),
+    ("lint", 40003),
+    ("pkg", 40004),
+    ("design", 40005),
+]
+
 MCP_TOOLS = [
-  {"type":"mcp","server_label":"repo","server_url":"http://190.160.117.23:50000","require_approval":"never"},
-  {"type":"mcp","server_label":"build","server_url":"http://190.160.117.23:50001","require_approval":"never"},
-  {"type":"mcp","server_label":"test","server_url":"http://190.160.117.23:50002","require_approval":"never"},
-  {"type":"mcp","server_label":"lint","server_url":"http://190.160.117.23:50003","require_approval":"never"},
-  {"type":"mcp","server_label":"pkg","server_url":"http://190.160.117.23:50004","require_approval":"never"},
-  {"type":"mcp","server_label":"design","server_url":"http://190.160.117.23:50005","require_approval":"never"},
+    {
+        "type": "mcp",
+        "server_label": label,
+        "server_url": _mcp_server_url(label, port),
+        "require_approval": _mcp_require_approval(label),
+    }
+    for label, port in _MCP_DEFAULTS
 ]
 
 
