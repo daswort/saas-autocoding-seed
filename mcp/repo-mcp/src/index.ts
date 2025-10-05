@@ -11,6 +11,24 @@ const HOST = '0.0.0.0';
 const server = new McpServer({ name: "repo-mcp", version: "0.1.0" });
 const handlers = new Map<string, (args: any)=>Promise<any>>();
 
+const env = ((globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env) ?? {};
+const HEADER_NAME = env.MCP_TOOL_API_KEY_HEADER || "x-api-key";
+const rawKeyList = env.REPO_MCP_TOOL_API_KEYS || env.REPO_MCP_TOOL_API_KEY || env.MCP_TOOL_API_KEYS || env.MCP_TOOL_API_KEY || "";
+const ALLOWED_TOOL_KEYS = rawKeyList.split(",").map((value: string) => value.trim()).filter(Boolean);
+
+const requireApiKey = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (ALLOWED_TOOL_KEYS.length === 0) {
+    res.status(503).json({ error: "tool api key not configured" });
+    return;
+  }
+  const provided = req.get(HEADER_NAME) ?? (req.query[HEADER_NAME] as string | undefined);
+  if (!provided || !ALLOWED_TOOL_KEYS.includes(provided)) {
+    res.status(401).json({ error: "invalid api key" });
+    return;
+  }
+  next();
+};
+
 function registerTool(name: string, schema: any, desc: string, handler: (args:any)=>Promise<any>) {
   handlers.set(name, handler);
   server.registerTool(
@@ -110,7 +128,7 @@ app.post("/", async (req, res) => {
   await handleMcpRequest(req, res, req.body);
 });
 
-app.post("/tool/:name", async (req, res) => {
+app.post("/tool/:name", requireApiKey, async (req, res) => {
   try {
     const h = handlers.get(req.params.name);
     if (!h) return res.status(404).json({ error: "tool not found" });
