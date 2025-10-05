@@ -26,12 +26,35 @@ const r = await $`bash -lc ${cmd}`.nothrow(); return { ok: r.exitCode===0, outpu
 
 
 const app = express(); app.use(express.json());
-app.post("/mcp", async (req,res)=>{ const t=new StreamableHTTPServerTransport({enableJsonResponse:true}); res.on("close",()=>t.close()); await server.connect(t); await t.handleRequest(req,res,req.body); });
+
+function ensureAcceptHeader(req: express.Request, { includeJson = true } = {}) {
+  const header = req.headers["accept"];
+  const joined = Array.isArray(header) ? header.join(",") : header ?? "";
+  const parts = joined.split(",").map((p) => p.trim()).filter(Boolean);
+  if (includeJson && !parts.some((p) => p.includes("application/json"))) parts.push("application/json");
+  if (!parts.some((p) => p.includes("text/event-stream"))) parts.push("text/event-stream");
+  req.headers["accept"] = parts.join(", ");
+}
+
+async function handleMcpRequest(req: express.Request, res: express.Response, body?: unknown) {
+  const transport = new StreamableHTTPServerTransport({ enableJsonResponse: true });
+  res.on("close", () => transport.close());
+  await server.connect(transport);
+  await transport.handleRequest(req, res, body);
+}
+
+app.get("/mcp", async (req, res) => {
+  ensureAcceptHeader(req, { includeJson: false });
+  await handleMcpRequest(req, res);
+});
+app.get("/", async (req, res) => {
+  ensureAcceptHeader(req, { includeJson: false });
+  await handleMcpRequest(req, res);
+});
+app.post("/mcp", async (req,res)=>{ ensureAcceptHeader(req); await handleMcpRequest(req,res,req.body); });
 app.post("/", async (req, res) => {
-  const t = new StreamableHTTPServerTransport({ enableJsonResponse: true });
-  res.on("close", () => t.close());
-  await server.connect(t);
-  await t.handleRequest(req, res, req.body);
+  ensureAcceptHeader(req);
+  await handleMcpRequest(req, res, req.body);
 });
 app.post("/tool/:name", async (req,res)=>{ try{ const h=handlers.get(req.params.name); if(!h) return res.status(404).json({error:"tool not found"}); res.json(await h(req.body||{})); }catch(e:any){ res.status(500).json({error:e.message}); }});
 app.listen(3001, ()=>console.log("build-mcp http://localhost:3001/{mcp|tool/*}"));

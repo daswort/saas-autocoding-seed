@@ -73,18 +73,38 @@ registerTool(
 const app = express();
 app.use(express.json());
 
-app.post("/mcp", async (req, res) => {
+function ensureAcceptHeader(req: express.Request, { includeJson = true } = {}) {
+  const header = req.headers["accept"];
+  const joined = Array.isArray(header) ? header.join(",") : header ?? "";
+  const parts = joined.split(",").map((p) => p.trim()).filter(Boolean);
+  if (includeJson && !parts.some((p) => p.includes("application/json"))) parts.push("application/json");
+  if (!parts.some((p) => p.includes("text/event-stream"))) parts.push("text/event-stream");
+  req.headers["accept"] = parts.join(", ");
+}
+
+async function handleMcpRequest(req: express.Request, res: express.Response, body?: unknown) {
   const transport = new StreamableHTTPServerTransport({ enableJsonResponse: true });
   res.on("close", () => transport.close());
   await server.connect(transport);
-  await transport.handleRequest(req, res, req.body);
+  await transport.handleRequest(req, res, body);
+}
+
+app.get("/mcp", async (req, res) => {
+  ensureAcceptHeader(req, { includeJson: false });
+  await handleMcpRequest(req, res);
+});
+app.post("/mcp", async (req, res) => {
+  ensureAcceptHeader(req);
+  await handleMcpRequest(req, res, req.body);
 });
 
+app.get("/", async (req, res) => {
+  ensureAcceptHeader(req, { includeJson: false });
+  await handleMcpRequest(req, res);
+});
 app.post("/", async (req, res) => {
-  const t = new StreamableHTTPServerTransport({ enableJsonResponse: true });
-  res.on("close", () => t.close());
-  await server.connect(t);
-  await t.handleRequest(req, res, req.body);
+  ensureAcceptHeader(req);
+  await handleMcpRequest(req, res, req.body);
 });
 
 app.post("/tool/:name", async (req, res) => {
