@@ -4,6 +4,9 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import express from "express";
 import { z } from "zod"; import { $ } from "zx";
 
+const PORT = 40004;
+const HOST = '0.0.0.0';
+
 const server = new McpServer({ name: "pkg-mcp", version: "0.1.0" });
 const handlers = new Map<string,(a:any)=>Promise<any>>();
 function reg(name:string, schema:any, desc:string, fn:(a:any)=>Promise<any>) {
@@ -48,4 +51,7 @@ app.post("/mcp", async (req,res)=>{ ensureAcceptHeader(req); await handleMcpRequ
 app.get("/", async (req,res)=>{ ensureAcceptHeader(req, { includeJson: false }); await handleMcpRequest(req,res); });
 app.post("/", async (req,res)=>{ ensureAcceptHeader(req); await handleMcpRequest(req,res,req.body); });
 
-app.listen(3004, ()=>console.log("pkg-mcp http://localhost:3004/{mcp|}"));
+app.listen(PORT, () => {
+  console.log(`repo-mcp http://${HOST}:${PORT}/{mcp|tool/*}`);
+});
+

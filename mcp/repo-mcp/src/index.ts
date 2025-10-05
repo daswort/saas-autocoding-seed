@@ -5,6 +5,9 @@ import { z } from "zod";
 import { $ } from "zx";
 import { isAllowed } from "./policy.js";
 
+const PORT = 40000;
+const HOST = '0.0.0.0';
+
 const server = new McpServer({ name: "repo-mcp", version: "0.1.0" });
 const handlers = new Map<string, (args: any)=>Promise<any>>();
 
@@ -118,4 +121,6 @@ app.post("/tool/:name", async (req, res) => {
   }
 });
 
-app.listen(3000, () => console.log("repo-mcp http://localhost:3000/{mcp|tool/*}"));
+app.listen(PORT, () => {
+  console.log(`repo-mcp http://${HOST}:${PORT}/{mcp|tool/*}`);
+});

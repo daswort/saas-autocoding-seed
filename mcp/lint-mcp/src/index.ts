@@ -3,6 +3,9 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import express from "express";
 import { z } from "zod"; import { $ } from "zx";
 
+const PORT = 40003;
+const HOST = '0.0.0.0';
+
 const server = new McpServer({ name: "lint-mcp", version: "0.1.0" });
 function reg(name:string, schema:any, desc:string, fn:(a:any)=>Promise<any>) {
   server.registerTool(name, { title:name, description:desc, inputSchema:schema },
@@ -58,4 +61,6 @@ app.post("/", async (req, res) => {
   await handleMcpRequest(req, res, req.body);
 });
 
-app.listen(3003, () => console.log("lint-mcp http://localhost:3003/{mcp|}"));
+app.listen(PORT, () => {
+  console.log(`repo-mcp http://${HOST}:${PORT}/{mcp|tool/*}`);
+});

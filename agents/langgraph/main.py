@@ -21,12 +21,12 @@ for name in ["discovery","uxui","spec","plan","front","back","qa","infra","docs"
 
 # MCP: usa server_url + server_label
 MCP_TOOLS = [
-  {"type":"mcp","server_label":"repo","server_url":"http://localhost:3000","require_approval":"never"},
-  {"type":"mcp","server_label":"build","server_url":"http://localhost:3001","require_approval":"never"},
-  {"type":"mcp","server_label":"test","server_url":"http://localhost:3002","require_approval":"never"},
-  {"type":"mcp","server_label":"lint","server_url":"http://localhost:3003","require_approval":"never"},
-  {"type":"mcp","server_label":"pkg","server_url":"http://localhost:3004","require_approval":"never"},
-  {"type":"mcp","server_label":"design","server_url":"http://localhost:3005","require_approval":"never"},
+  {"type":"mcp","server_label":"repo","server_url":"http://190.160.117.23:50000","require_approval":"never"},
+  {"type":"mcp","server_label":"build","server_url":"http://190.160.117.23:50001","require_approval":"never"},
+  {"type":"mcp","server_label":"test","server_url":"http://190.160.117.23:50002","require_approval":"never"},
+  {"type":"mcp","server_label":"lint","server_url":"http://190.160.117.23:50003","require_approval":"never"},
+  {"type":"mcp","server_label":"pkg","server_url":"http://190.160.117.23:50004","require_approval":"never"},
+  {"type":"mcp","server_label":"design","server_url":"http://190.160.117.23:50005","require_approval":"never"},
 ]
 
 
@@ -97,7 +97,8 @@ if __name__ == "__main__":
     payload = {
         "feature": {"title":"Nueva característica agnóstica","user_story":"Como usuario quiero X",
                     "acceptance":["Criterio A","Criterio B"],"constraints":["Ninguna"]},
-        "stack": {}
+        "stack": {"frontend":{"lang":"typescript","framework":"react"},
+          "backend":{"lang":"python","framework":"fastapi"},}
     }
     final = app.invoke(payload)
     print(json.dumps(final.get("artifacts", {}), indent=2, ensure_ascii=False))

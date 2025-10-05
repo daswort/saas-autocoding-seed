@@ -3,6 +3,9 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import express from "express";
 import { z } from "zod"; import { $ } from "zx";
 
+const PORT = 40001;
+const HOST = '0.0.0.0';
+
 
 const server = new McpServer({ name: "build-mcp", version: "0.1.0" });
 const handlers = new Map<string, (a:any)=>Promise<any>>();
@@ -57,4 +60,6 @@ app.post("/", async (req, res) => {
   await handleMcpRequest(req, res, req.body);
 });
 app.post("/tool/:name", async (req,res)=>{ try{ const h=handlers.get(req.params.name); if(!h) return res.status(404).json({error:"tool not found"}); res.json(await h(req.body||{})); }catch(e:any){ res.status(500).json({error:e.message}); }});
-app.listen(3001, ()=>console.log("build-mcp http://localhost:3001/{mcp|tool/*}"));
+app.listen(PORT, () => {
+  console.log(`repo-mcp http://${HOST}:${PORT}/{mcp|tool/*}`);
+});

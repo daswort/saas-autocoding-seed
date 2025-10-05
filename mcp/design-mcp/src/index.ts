@@ -3,6 +3,10 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import express from "express";
 import { z } from "zod"; import { $ } from "zx";
 
+const PORT = 40005;
+const HOST = '0.0.0.0';
+
+
 const server = new McpServer({ name: "design-mcp", version: "0.1.0" });
 
 server.registerTool(
@@ -34,4 +38,6 @@ app.get("/", async (req,res)=>{ ensureAcceptHeader(req, { includeJson: false });
 app.post("/mcp", async (req,res)=>{ ensureAcceptHeader(req); await handleMcpRequest(req,res,req.body); });
 app.post("/", async (req,res)=>{ ensureAcceptHeader(req); await handleMcpRequest(req,res,req.body); });
 
-app.listen(3005, ()=>console.log("design-mcp http://localhost:3005/{mcp|}"));
+app.listen(PORT, () => {
+  console.log(`repo-mcp http://${HOST}:${PORT}/{mcp|tool/*}`);
+});
