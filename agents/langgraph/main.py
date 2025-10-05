@@ -8,6 +8,22 @@ load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 MODEL = os.getenv("MODEL", "gpt-5-codex")
 
+
+def _mcp_server_url(label: str, default_port: int) -> str:
+    env_var = f"{label.upper()}_MCP_URL"
+    explicit = os.getenv(env_var)
+    if explicit:
+        return explicit
+    base = os.getenv("MCP_BASE_URL")
+    if base:
+        return f"{base.rstrip('/')}/{label}"
+    return f"http://127.0.0.1:{default_port}"
+
+
+def _mcp_require_approval(label: str) -> str:
+    env_var = f"{label.upper()}_MCP_REQUIRE_APPROVAL"
+    return os.getenv(env_var, os.getenv("MCP_REQUIRE_APPROVAL_DEFAULT", "always"))
+
 class State(TypedDict):
     feature: dict
     stack: dict
@@ -20,26 +36,55 @@ for name in ["discovery","uxui","spec","plan","front","back","qa","infra","docs"
         PROMPTS[name] = f.read()
 
 # MCP: usa server_url + server_label
+_MCP_DEFAULTS = [
+    ("repo", 40000),
+    ("build", 40001),
+    ("test", 40002),
+    ("lint", 40003),
+    ("pkg", 40004),
+    ("design", 40005),
+]
+
 MCP_TOOLS = [
-  {"type":"mcp","server_label":"repo","server_url":"http://190.160.117.23:50000","require_approval":"never"},
-  {"type":"mcp","server_label":"build","server_url":"http://190.160.117.23:50001","require_approval":"never"},
-  {"type":"mcp","server_label":"test","server_url":"http://190.160.117.23:50002","require_approval":"never"},
-  {"type":"mcp","server_label":"lint","server_url":"http://190.160.117.23:50003","require_approval":"never"},
-  {"type":"mcp","server_label":"pkg","server_url":"http://190.160.117.23:50004","require_approval":"never"},
-  {"type":"mcp","server_label":"design","server_url":"http://190.160.117.23:50005","require_approval":"never"},
+    {
+        "type": "mcp",
+        "server_label": label,
+        "server_url": _mcp_server_url(label, port),
+        "require_approval": _mcp_require_approval(label),
+    }
+    for label, port in _MCP_DEFAULTS
 ]
 
 
+def _diagnose_mcp_error(err: Exception) -> str | None:
+    message = getattr(err, "message", None) or str(err)
+    if "Error retrieving tool list from MCP server" not in message:
+        return None
+    hint = [
+        "No se pudo contactar al servidor MCP indicado. Esto normalmente ocurre cuando el proceso del MCP no está levantado o la URL apunta a un host inaccesible.",
+        "Verifica que el servidor esté escuchando y que `*_MCP_URL` (o `MCP_BASE_URL`) apunte a un endpoint alcanzable desde la API de OpenAI.",
+    ]
+    if "401" in message:
+        hint.append("El servidor respondió 401: revisa que la cabecera del API key (`MCP_TOOL_API_KEY_HEADER`) y el valor configurado coincidan.")
+    return " ".join(hint)
+
+
 def call(role: str, state: State):
-    r = client.responses.create(
-        model=MODEL,
-        tools=MCP_TOOLS,
-        input=[
-            {"role": "system", "content": PROMPTS[role]},
-            {"role": "user", "content": json.dumps(state, ensure_ascii=False)}
-        ],
-    )
-    return r.output_text
+    try:
+        r = client.responses.create(
+            model=MODEL,
+            tools=MCP_TOOLS,
+            input=[
+                {"role": "system", "content": PROMPTS[role]},
+                {"role": "user", "content": json.dumps(state, ensure_ascii=False)}
+            ],
+        )
+        return r.output_text
+    except Exception as err:
+        hint = _diagnose_mcp_error(err)
+        if hint:
+            raise RuntimeError(f"Fallo al inicializar las herramientas MCP: {hint}") from err
+        raise
 
 def Discovery(state: State):
     out = call("discovery", state)

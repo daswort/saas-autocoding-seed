@@ -8,6 +8,24 @@ const HOST = '0.0.0.0';
 
 const server = new McpServer({ name: "test-mcp", version: "0.1.0" });
 const handlers = new Map<string, (a:any)=>Promise<any>>();
+
+const env = ((globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env) ?? {};
+const HEADER_NAME = env.MCP_TOOL_API_KEY_HEADER || "x-api-key";
+const rawKeyList = env.TEST_MCP_TOOL_API_KEYS || env.TEST_MCP_TOOL_API_KEY || env.MCP_TOOL_API_KEYS || env.MCP_TOOL_API_KEY || "";
+const ALLOWED_TOOL_KEYS = rawKeyList.split(",").map((value: string) => value.trim()).filter(Boolean);
+
+const requireApiKey = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (ALLOWED_TOOL_KEYS.length === 0) {
+    res.status(503).json({ error: "tool api key not configured" });
+    return;
+  }
+  const provided = req.get(HEADER_NAME) ?? (req.query[HEADER_NAME] as string | undefined);
+  if (!provided || !ALLOWED_TOOL_KEYS.includes(provided)) {
+    res.status(401).json({ error: "invalid api key" });
+    return;
+  }
+  next();
+};
 const FRONT = { react: 'pnpm -C frontend test -- --watch=false', vue: 'pnpm -C frontend test', flutter: 'flutter test' } as const;
 const BACK = { go: 'go test -race -short ./...', node: 'pnpm -C backend test', python: 'pytest -q' } as const;
 
@@ -58,7 +76,7 @@ app.post("/", async (req, res) => {
   ensureAcceptHeader(req);
   await handleMcpRequest(req, res, req.body);
 });
-app.post("/tool/:name", async (req,res)=>{ try{ const h=handlers.get(req.params.name); if(!h) return res.status(404).json({error:"tool not found"}); res.json(await h(req.body||{})); }catch(e:any){ res.status(500).json({error:e.message}); }});
+app.post("/tool/:name", requireApiKey, async (req,res)=>{ try{ const h=handlers.get(req.params.name); if(!h) return res.status(404).json({error:"tool not found"}); res.json(await h(req.body||{})); }catch(e:any){ res.status(500).json({error:e.message}); }});
 app.listen(PORT, () => {
   console.log(`repo-mcp http://${HOST}:${PORT}/{mcp|tool/*}`);
 });
