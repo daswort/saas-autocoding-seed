@@ -23,30 +23,39 @@ reg("lint.back", { lang: z.string().optional() }, "Run backend linter", async ({
 
 const app = express(); app.use(express.json());
 
-function ensureAcceptHeader(req: express.Request) {
+function ensureAcceptHeader(req: express.Request, { includeJson = true } = {}) {
   const header = req.headers["accept"];
   const joined = Array.isArray(header) ? header.join(",") : header ?? "";
   const parts = joined.split(",").map((p) => p.trim()).filter(Boolean);
-  if (!parts.some((p) => p.includes("application/json"))) parts.push("application/json");
+  if (includeJson && !parts.some((p) => p.includes("application/json"))) parts.push("application/json");
   if (!parts.some((p) => p.includes("text/event-stream"))) parts.push("text/event-stream");
   req.headers["accept"] = parts.join(", ");
 }
 
+async function handleMcpRequest(req: express.Request, res: express.Response, body?: unknown) {
+  const transport = new StreamableHTTPServerTransport({ enableJsonResponse: true });
+  res.on("close", () => transport.close());
+  await server.connect(transport);
+  await transport.handleRequest(req, res, body);
+}
+
 // MCP en /mcp
+app.get("/mcp", async (req, res) => {
+  ensureAcceptHeader(req, { includeJson: false });
+  await handleMcpRequest(req, res);
+});
 app.post("/mcp", async (req, res) => {
   ensureAcceptHeader(req);
-  const t = new StreamableHTTPServerTransport({ enableJsonResponse: true });
-  res.on("close", () => t.close());
-  await server.connect(t);
-  await t.handleRequest(req, res, req.body);
+  await handleMcpRequest(req, res, req.body);
 });
 // MCP también en la raíz /
+app.get("/", async (req, res) => {
+  ensureAcceptHeader(req, { includeJson: false });
+  await handleMcpRequest(req, res);
+});
 app.post("/", async (req, res) => {
   ensureAcceptHeader(req);
-  const t = new StreamableHTTPServerTransport({ enableJsonResponse: true });
-  res.on("close", () => t.close());
-  await server.connect(t);
-  await t.handleRequest(req, res, req.body);
+  await handleMcpRequest(req, res, req.body);
 });
 
 app.listen(3003, () => console.log("lint-mcp http://localhost:3003/{mcp|}"));
