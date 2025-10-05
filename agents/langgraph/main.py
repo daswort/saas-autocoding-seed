@@ -1,12 +1,28 @@
-import os, json
+import os, json, re
 from typing import TypedDict
 from dotenv import load_dotenv
 from langgraph.graph import StateGraph, END
-from openai import OpenAI
+from openai import OpenAI, APIStatusError
 
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 MODEL = os.getenv("MODEL", "gpt-5-codex")
+
+
+def _mcp_server_url(label: str, default_port: int) -> str:
+    env_var = f"{label.upper()}_MCP_URL"
+    explicit = os.getenv(env_var)
+    if explicit:
+        return explicit
+    base = os.getenv("MCP_BASE_URL")
+    if base:
+        return f"{base.rstrip('/')}/{label}"
+    return f"http://127.0.0.1:{default_port}"
+
+
+def _mcp_require_approval(label: str) -> str:
+    env_var = f"{label.upper()}_MCP_REQUIRE_APPROVAL"
+    return os.getenv(env_var, os.getenv("MCP_REQUIRE_APPROVAL_DEFAULT", "always"))
 
 class State(TypedDict):
     feature: dict
@@ -20,26 +36,60 @@ for name in ["discovery","uxui","spec","plan","front","back","qa","infra","docs"
         PROMPTS[name] = f.read()
 
 # MCP: usa server_url + server_label
-MCP_TOOLS = [
-  {"type":"mcp","server_label":"repo","server_url":"http://190.160.117.23:50000","require_approval":"never"},
-  {"type":"mcp","server_label":"build","server_url":"http://190.160.117.23:50001","require_approval":"never"},
-  {"type":"mcp","server_label":"test","server_url":"http://190.160.117.23:50002","require_approval":"never"},
-  {"type":"mcp","server_label":"lint","server_url":"http://190.160.117.23:50003","require_approval":"never"},
-  {"type":"mcp","server_label":"pkg","server_url":"http://190.160.117.23:50004","require_approval":"never"},
-  {"type":"mcp","server_label":"design","server_url":"http://190.160.117.23:50005","require_approval":"never"},
+_MCP_DEFAULTS = [
+    ("repo", 40000),
+    ("build", 40001),
+    ("test", 40002),
+    ("lint", 40003),
+    ("pkg", 40004),
+    ("design", 40005),
 ]
+
+MCP_TOOLS = [
+    {
+        "type": "mcp",
+        "server_label": label,
+        "server_url": _mcp_server_url(label, port),
+        "require_approval": _mcp_require_approval(label),
+    }
+    for label, port in _MCP_DEFAULTS
+]
+
+_mcp_skip: set[str] = set()
+
+
+def _active_mcp_tools():
+    return [tool for tool in MCP_TOOLS if tool["server_label"] not in _mcp_skip]
+
+
+def _extract_mcp_label(err: Exception) -> str | None:
+    message = getattr(err, "message", None) or str(err)
+    match = re.search(r"MCP server: '([^']+)'", message)
+    return match.group(1) if match else None
 
 
 def call(role: str, state: State):
-    r = client.responses.create(
-        model=MODEL,
-        tools=MCP_TOOLS,
-        input=[
-            {"role": "system", "content": PROMPTS[role]},
-            {"role": "user", "content": json.dumps(state, ensure_ascii=False)}
-        ],
-    )
-    return r.output_text
+    while True:
+        try:
+            r = client.responses.create(
+                model=MODEL,
+                tools=_active_mcp_tools(),
+                input=[
+                    {"role": "system", "content": PROMPTS[role]},
+                    {"role": "user", "content": json.dumps(state, ensure_ascii=False)}
+                ],
+            )
+            return r.output_text
+        except Exception as err:
+            label = _extract_mcp_label(err)
+            status = getattr(err, "status_code", None)
+            if isinstance(err, APIStatusError):
+                status = err.status_code
+            if label and label not in _mcp_skip and status == 424:
+                _mcp_skip.add(label)
+                print(f"[langgraph] Advertencia: se omitirá el MCP '{label}' por no estar disponible ({err}).")
+                continue
+            raise
 
 def Discovery(state: State):
     out = call("discovery", state)

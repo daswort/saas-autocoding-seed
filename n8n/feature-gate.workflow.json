@@ -27,7 +27,7 @@
     {
       "parameters": {
         "requestMethod": "POST",
-        "url": "http://190.160.117.23:50000/tool/ci.run",
+        "url": "={{ ($env.REPO_MCP_URL || '').replace(/\\/$/, '') + '/tool/ci.run' }}",
         "jsonParameters": true,
         "options": {},
         "bodyParametersJson": "{ \"ref\": \"HEAD\" }"

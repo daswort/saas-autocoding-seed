@@ -18,7 +18,7 @@
     {
       "parameters": {
         "requestMethod": "POST",
-        "url": "http://190.160.117.23:50002/tool/test.back",
+        "url": "={{ ($env.TEST_MCP_URL || '').replace(/\\/$/, '') + '/tool/test.back' }}",
         "jsonParameters": true,
         "options": {},
         "bodyParametersJson": "{ \"lang\": \"go\" }"
@@ -32,7 +32,7 @@
     {
       "parameters": {
         "requestMethod": "POST",
-        "url": "http://190.160.117.23:50000/tool/repo.pr",
+        "url": "={{ ($env.REPO_MCP_URL || '').replace(/\\/$/, '') + '/tool/repo.pr' }}",
         "jsonParameters": true,
         "options": {},
         "bodyParametersJson": "{ \"title\": \"chore(refactor): nightly\", \"branch\": \"auto/refactor-nightly\" }"
