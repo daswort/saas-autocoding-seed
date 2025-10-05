@@ -1,0 +1,111 @@
+# === General ===
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+*.orig
+*.lock
+.env
+.env.*
+!.env.example
+
+# === Node / PNPM ===
+node_modules/
+.pnpm-store/
+.npm/
+.nvm/
+dist/
+build/
+coverage/
+.cache/
+vite.config.ts.timestamp*
+*.tsbuildinfo
+
+# === TypeScript ===
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# === MCP servers ===
+mcp/*/node_modules/
+mcp/*/dist/
+mcp/*/build/
+mcp/*/.cache/
+
+# === Python / LangGraph ===
+agents/langgraph/__pycache__/
+agents/langgraph/env/
+agents/langgraph/.venv/
+agents/langgraph/*.egg-info/
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+.venv/
+env/
+*.egg-info/
+.eggs/
+
+# === n8n ===
+.n8n/
+n8n/.n8n/
+n8n/config/
+n8n/logs/
+n8n/backups/
+
+# === IDEs ===
+.vscode/
+.idea/
+*.iml
+*.sublime-workspace
+*.sublime-project
+
+# === OS & tools ===
+*.pid
+*.seed
+*.tgz
+*.tar
+*.zip
+*.7z
+*.bak
+*.tmp
+*.log
+*.out
+
+# === Git / Merge ===
+*.rej
+*.orig
+*.merge
+*.diff
+
+# === Generated outputs ===
+frontend/dist/
+frontend/.next/
+frontend/out/
+backend/build/
+backend/dist/
+deploy/*.tar.gz
+deploy/*.zip
+
+# === Test / Reports ===
+coverage/
+reports/
+test-results/
+junit.xml
+*.coverage
+*.lcov
+
+# === Docker ===
+*.pid
+*.log
+docker-compose.override.yml
+docker-data/
+volumes/
+
+# === CI/CD ===
+.github/
+.gitlab/
+.circleci/
+.n8n/config/

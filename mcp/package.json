@@ -1,0 +1,14 @@
+{
+    "name": "auto-coding-seed",
+    "private": true,
+    "version": "0.1.0",
+    "type": "module",
+    "scripts": {
+        "start:all": "concurrently -n repo,build,test,lint,pkg,design 'pnpm -C mcp/repo-mcp start' 'pnpm -C mcp/build-mcp start' 'pnpm -C mcp/test-mcp start' 'pnpm -C mcp/lint-mcp start' 'pnpm -C mcp/pkg-mcp start' 'pnpm -C mcp/design-mcp start'",
+        "start:langgraph": "python agents/langgraph/main.py",
+        "start:n8n": "n8n start"
+    },
+    "devDependencies": {
+        "concurrently": "^9.0.1"
+    }
+}

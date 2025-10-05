@@ -1,0 +1,7 @@
+packages:
+- 'agents/*'
+- 'mcp/*'
+- 'n8n'
+
+
+link-workspace-packages: true

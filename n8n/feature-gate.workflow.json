@@ -1,9 +1,50 @@
 {
-  "name":"Feature-Gate",
-  "nodes":[
-    {"parameters":{"path":"/supervisor/event"},"type":"n8n-nodes-base.webhook","name":"Webhook"},
-    {"parameters":{"functionCode":"return [{ json: { approve: $json.risk === 0, diff: $json.diff }}];"},"type":"n8n-nodes-base.function","name":"Summarize"},
-    {"parameters":{"url":"http://localhost:7800/tool/ci.run","options":{"bodyContentType":"json"}},"type":"n8n-nodes-base.httpRequest","name":"Trigger CI"}
+  "name": "Feature-Gate",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "supervisor/event",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "id": "Webhook_1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [ -300, 0 ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const approve = $json.risk === 0;\nconst diff = $json.diff || \"<no diff>\";\nreturn [{ json: { approve, diff } }];"
+      },
+      "id": "Function_1",
+      "name": "Summarize",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [ 0, 0 ]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "http://localhost:3000/tool/ci.run",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "{ \"ref\": \"HEAD\" }"
+      },
+      "id": "HttpRequest_1",
+      "name": "Trigger CI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [ 300, 0 ]
+    }
   ],
-  "connections":{"Webhook":{"main":[[{"node":"Summarize","type":"main","index":0}]]},"Summarize":{"main":[[{"node":"Trigger CI","type":"main","index":0}]]}}
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Summarize", "type": "main", "index": 0 }]] },
+    "Summarize": { "main": [[{ "node": "Trigger CI", "type": "main", "index": 0 }]] }
+  },
+  "pinData": {},
+  "meta": { "templateCredsSetup": false },
+  "settings": {},
+  "staticData": null
 }
